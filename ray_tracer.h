@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <stdexcept>
+#include <vector>
 
 struct Vector3 {
     double x{};
@@ -74,6 +76,22 @@ struct Ray {
 struct Sphere {
     Vector3 center;
     double radius{};
+    Vector3 albedo{0.8, 0.8, 0.8};
+    Vector3 emission{};
+};
+
+struct HitRecord {
+    Vector3 point;
+    Vector3 normal;
+    Vector3 albedo;
+    Vector3 emission;
+    double t{};
+    bool front_face{};
+
+    void set_face_normal(const Ray& ray, const Vector3& outward_normal) {
+        front_face = ray.direction.dot(outward_normal) < 0.0;
+        normal = front_face ? outward_normal : outward_normal * -1.0;
+    }
 };
 
 class RandomGenerator {
@@ -97,28 +115,57 @@ private:
     std::mt19937_64 engine_;
 };
 
-// Returns true when the ray intersects the sphere at a non-negative t.
-// On a hit, t_hit contains the nearest intersection parameter.
-[[nodiscard]] inline bool hit_sphere(const Ray& ray, const Sphere& sphere, double& t_hit) {
+// Tests the nearest sphere root in [t_min, t_max] and fills the surface record.
+[[nodiscard]] inline bool hit(const Ray& ray, const Sphere& sphere,
+                              double t_min, double t_max, HitRecord& record) {
     const Vector3 offset = ray.origin - sphere.center;
     const double a = ray.direction.dot(ray.direction);
     const double half_b = offset.dot(ray.direction);
     const double c = offset.dot(offset) - sphere.radius * sphere.radius;
     const double discriminant = half_b * half_b - a * c;
 
-    if (a == 0.0 || discriminant < 0.0) {
+    if (a == 0.0 || sphere.radius <= 0.0 || discriminant < 0.0) {
         return false;
     }
 
     const double root = std::sqrt(discriminant);
     double t = (-half_b - root) / a;
-    if (t < 0.0) {
+    if (t < t_min || t > t_max) {
         t = (-half_b + root) / a;
-        if (t < 0.0) {
+        if (t < t_min || t > t_max) {
             return false;
         }
     }
 
-    t_hit = t;
+    record.t = t;
+    record.point = ray.at(t);
+    record.albedo = sphere.albedo;
+    record.emission = sphere.emission;
+    record.set_face_normal(ray, (record.point - sphere.center) / sphere.radius);
+    return true;
+}
+
+[[nodiscard]] inline bool hit(const Ray& ray, const std::vector<Sphere>& spheres,
+                              double t_min, double t_max, HitRecord& record) {
+    HitRecord candidate;
+    bool found = false;
+    double closest = t_max;
+    for (const Sphere& sphere : spheres) {
+        if (hit(ray, sphere, t_min, closest, candidate)) {
+            found = true;
+            closest = candidate.t;
+            record = candidate;
+        }
+    }
+    return found;
+}
+
+// Retained for the Phase 1 smoke check.
+[[nodiscard]] inline bool hit_sphere(const Ray& ray, const Sphere& sphere, double& t_hit) {
+    HitRecord record;
+    if (!hit(ray, sphere, 0.0, std::numeric_limits<double>::infinity(), record)) {
+        return false;
+    }
+    t_hit = record.t;
     return true;
 }

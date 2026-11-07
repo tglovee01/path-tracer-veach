@@ -1,0 +1,7 @@
+# C++ 빌드 파일 및 실행파일
+*.exe
+*.obj
+*.o
+*.out
+build/
+.vscode/

@@ -92,6 +92,23 @@ struct Ray {
     }
 };
 
+[[nodiscard]] inline double balance_heuristic(double pdf_a, double pdf_b,
+                                               int samples_a = 1, int samples_b = 1) {
+    const double a = std::max(0.0, pdf_a) * std::max(0, samples_a);
+    const double b = std::max(0.0, pdf_b) * std::max(0, samples_b);
+    const double sum = a + b;
+    return sum > 0.0 ? a / sum : 0.0;
+}
+
+[[nodiscard]] inline double power_heuristic(double pdf_a, double pdf_b,
+                                             int samples_a = 1, int samples_b = 1) {
+    const double a = std::max(0.0, pdf_a) * std::max(0, samples_a);
+    const double b = std::max(0.0, pdf_b) * std::max(0, samples_b);
+    const double aa = a * a;
+    const double bb = b * b;
+    return aa + bb > 0.0 ? aa / (aa + bb) : 0.0;
+}
+
 struct HitRecord;
 class RandomGenerator;
 
@@ -153,6 +170,7 @@ struct HitRecord {
     Vector3 emission;
     std::shared_ptr<const Material> material;
     double t{};
+    double sphere_area{};
     bool front_face{};
 
     void set_face_normal(const Ray& ray, const Vector3& outward_normal) {
@@ -233,6 +251,7 @@ inline Vector3 random_cosine_direction(RandomGenerator& rng, const Vector3& norm
     record.albedo = sphere.albedo;
     record.emission = sphere.emission;
     record.material = sphere.material;
+    record.sphere_area = 4.0 * 3.14159265358979323846 * sphere.radius * sphere.radius;
     record.set_face_normal(ray, (record.point - sphere.center) / sphere.radius);
     return true;
 }

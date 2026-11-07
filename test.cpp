@@ -28,6 +28,21 @@ int main() {
         return 1;
     }
 
-    std::cout << "Phase 1 smoke check passed\n";
+    const double balance_a = balance_heuristic(0.25, 0.75);
+    const double balance_b = balance_heuristic(0.75, 0.25);
+    const double power_a = power_heuristic(0.25, 0.75);
+    const double power_b = power_heuristic(0.75, 0.25);
+    Vector3 refracted;
+    if (std::abs(balance_a + balance_b - 1.0) > 1e-12 ||
+        std::abs(power_a + power_b - 1.0) > 1e-12 ||
+        std::abs(balance_a - 0.25) > 1e-12 ||
+        std::abs(power_a - 0.1) > 1e-12 ||
+        !refract(Vector3{0.0, -1.0, 0.0}, Vector3{0.0, 1.0, 0.0}, 1.0 / 1.5,
+                 refracted) || std::abs(refracted.y + 1.0) > 1e-12) {
+        std::cerr << "MIS heuristic or refraction check failed\n";
+        return 1;
+    }
+
+    std::cout << "Phase 1 and Phase 4 smoke checks passed\n";
     return 0;
 }
